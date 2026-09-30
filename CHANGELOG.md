@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- New: **Ballu ONEAIR ASP-200S** (Hommyn device type 59), cloud only. Fan speed 1–8, PM2.5 and
+  pre-filter sensors, ionizer, UV lamp and damper switches; the damper is available in manual mode
+  only, where the device accepts it. The Sound select is not created for this model.
+- Device types are described by a per-type profile (`const.PROFILES`); the ASP-100 behaves as before.
+- Entity icons (`icons.json`): presets, fan speeds, switches and sensors.
+
 ## 0.2.0
 
 - New: a Repairs warning when a device has not been reachable over the local network for more than

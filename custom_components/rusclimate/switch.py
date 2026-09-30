@@ -1,7 +1,9 @@
-"""Configuration switches: button beeps and backlight auto-off."""
+"""Switches: ionizer, UV lamp and damper (ASP-200S); configuration: button beeps and backlight auto-off."""
 
 from __future__ import annotations
 
+from collections.abc import Callable
+from dataclasses import dataclass
 from typing import Any
 
 from homeassistant.components.switch import SwitchEntity, SwitchEntityDescription
@@ -10,17 +12,37 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .api import params as p
+from .const import CONF_DEVICE_TYPE, PROFILES
 from .entity import RusclimateEntity
 from .runtime import RusclimateConfigEntry
 
 PARALLEL_UPDATES = 0
 
+
+@dataclass(frozen=True, kw_only=True)
+class RusclimateSwitchDescription(SwitchEntityDescription):
+    available_fn: Callable[[dict[str, Any]], bool] = lambda _: True
+    watch: frozenset[str] = frozenset()
+
+
 SWITCHES = (
-    SwitchEntityDescription(
+    RusclimateSwitchDescription(
         key=p.BUTTON_SOUND, translation_key="button_sound", entity_category=EntityCategory.CONFIG
     ),
-    SwitchEntityDescription(
+    RusclimateSwitchDescription(
         key=p.BACKLIGHT_AUTO_OFF, translation_key="backlight_auto_off", entity_category=EntityCategory.CONFIG
+    ),
+)
+
+PURIFIER_SWITCHES = (
+    RusclimateSwitchDescription(key=p.IONIZER, translation_key="ionizer"),
+    RusclimateSwitchDescription(key=p.UV_LAMP, translation_key="uv_lamp"),
+    # Outside manual mode the device drives the damper itself and ignores the command.
+    RusclimateSwitchDescription(
+        key=p.DAMPER,
+        translation_key="damper",
+        available_fn=lambda s: s.get(p.MODE) == p.Mode.MANUAL,
+        watch=frozenset({p.MODE}),
     ),
 )
 
@@ -28,14 +50,22 @@ SWITCHES = (
 async def async_setup_entry(
     hass: HomeAssistant, entry: RusclimateConfigEntry, async_add_entities: AddConfigEntryEntitiesCallback
 ) -> None:
-    async_add_entities(RusclimateSwitch(entry, d) for d in SWITCHES)
+    purifier = PROFILES[entry.data[CONF_DEVICE_TYPE]].purifier
+    descriptions = (*SWITCHES, *(PURIFIER_SWITCHES if purifier else ()))
+    async_add_entities(RusclimateSwitch(entry, d) for d in descriptions)
 
 
 class RusclimateSwitch(RusclimateEntity, SwitchEntity):
-    def __init__(self, entry: RusclimateConfigEntry, description: SwitchEntityDescription) -> None:
+    entity_description: RusclimateSwitchDescription
+
+    def __init__(self, entry: RusclimateConfigEntry, description: RusclimateSwitchDescription) -> None:
         super().__init__(entry, description.translation_key or description.key)
         self.entity_description = description
-        self._watch = frozenset({description.key})
+        self._watch = frozenset({description.key}) | description.watch
+
+    @property
+    def available(self) -> bool:
+        return super().available and self.entity_description.available_fn(self.state_data)
 
     @property
     def is_on(self) -> bool | None:
