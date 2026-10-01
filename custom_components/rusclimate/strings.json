@@ -123,6 +123,11 @@
       "damper": {
         "name": "Damper"
       }
+    },
+    "binary_sensor": {
+      "damper_position": {
+        "name": "Damper position"
+      }
     }
   },
   "device": {

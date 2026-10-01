@@ -123,6 +123,11 @@
       "damper": {
         "name": "Заслонка"
       }
+    },
+    "binary_sensor": {
+      "damper_position": {
+        "name": "Положение заслонки"
+      }
     }
   },
   "device": {

@@ -78,6 +78,14 @@
           "on": "mdi:valve-open"
         }
       }
+    },
+    "binary_sensor": {
+      "damper_position": {
+        "default": "mdi:valve-closed",
+        "state": {
+          "on": "mdi:valve-open"
+        }
+      }
     }
   }
 }
