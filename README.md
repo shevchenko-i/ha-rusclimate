@@ -61,7 +61,8 @@ connection and signal entities as the ASP-100, with these differences:
 | PM2.5 | Particulate matter, µg/m³ |
 | Pre-filter | Remaining pre-filter resource, % (the main filter is **Filter**) |
 | Ionizer, UV lamp | Air purification switches |
-| Damper | Open/close; available **in manual mode only** — in the other modes the device drives the damper itself and ignores the command |
+| Damper | On = open (the device's own flag is the inverse); available **in manual mode only** — in the other modes the device drives the damper itself and ignores the command |
+| Damper position | Open / closed (recirculation), in **every** mode — including the ones where the device drives the damper |
 
 There is no Sound select: the ambient sounds are not verified on this model.
 

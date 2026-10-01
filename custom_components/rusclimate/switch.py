@@ -23,6 +23,8 @@ PARALLEL_UPDATES = 0
 class RusclimateSwitchDescription(SwitchEntityDescription):
     available_fn: Callable[[dict[str, Any]], bool] = lambda _: True
     watch: frozenset[str] = frozenset()
+    # The device's flag means the opposite of the switch: on in HA is false on the wire.
+    inverted: bool = False
 
 
 SWITCHES = (
@@ -38,9 +40,12 @@ PURIFIER_SWITCHES = (
     RusclimateSwitchDescription(key=p.IONIZER, translation_key="ionizer"),
     RusclimateSwitchDescription(key=p.UV_LAMP, translation_key="uv_lamp"),
     # Outside manual mode the device drives the damper itself and ignores the command.
+    # The device reports damper "true" when it is closed (checked against the Hommyn app,
+    # 2026-10-01), so the switch is inverted: on means open.
     RusclimateSwitchDescription(
         key=p.DAMPER,
         translation_key="damper",
+        inverted=True,
         available_fn=lambda s: s.get(p.MODE) == p.Mode.MANUAL,
         watch=frozenset({p.MODE}),
     ),
@@ -69,10 +74,11 @@ class RusclimateSwitch(RusclimateEntity, SwitchEntity):
 
     @property
     def is_on(self) -> bool | None:
-        return self.state_data.get(self.entity_description.key)
+        raw = self.state_data.get(self.entity_description.key)
+        return None if raw is None else raw != self.entity_description.inverted
 
     async def async_turn_on(self, **kwargs: Any) -> None:
-        await self._send(self.entity_description.key, True)
+        await self._send(self.entity_description.key, not self.entity_description.inverted)
 
     async def async_turn_off(self, **kwargs: Any) -> None:
-        await self._send(self.entity_description.key, False)
+        await self._send(self.entity_description.key, self.entity_description.inverted)

@@ -122,10 +122,27 @@ async def test_damper_only_in_manual_mode(hass, loaded59):
     assert hass.states.get(damper).state == STATE_UNAVAILABLE  # auto: the device drives it
     ch["cloud"].push({p.MODE: 1})
     await hass.async_block_till_done()
+    # The fixture's damper is False on the wire, which the device means as open.
+    assert hass.states.get(damper).state == "on"
+    await hass.services.async_call("switch", "turn_off", {"entity_id": damper}, blocking=True)
+    await hass.async_block_till_done()
     assert hass.states.get(damper).state == "off"
     await hass.services.async_call("switch", "turn_on", {"entity_id": damper}, blocking=True)
     await hass.async_block_till_done()
-    assert ch["cloud"].sent == [(p.DAMPER, True)]
+    assert ch["cloud"].sent == [(p.DAMPER, True), (p.DAMPER, False)]
+    assert hass.states.get(damper).state == "on"
+
+
+async def test_damper_reads_true_as_closed(hass, loaded59):
+    # Owner, 2026-10-01: HA showed the damper open while the Hommyn app showed it closed,
+    # and opening it in the app turned the HA switch off. "true" on the wire is closed.
+    _, ch = loaded59
+    damper = "switch.office_breezer_damper"
+    ch["cloud"].push({p.MODE: 1, p.DAMPER: True})
+    await hass.async_block_till_done()
+    assert hass.states.get(damper).state == "off"
+    ch["cloud"].push({p.DAMPER: False})
+    await hass.async_block_till_done()
     assert hass.states.get(damper).state == "on"
 
 
@@ -145,3 +162,15 @@ async def test_user_flow_accepts_asp200_link(hass):
         )
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert result["data"]["device_type"] == 59
+
+
+async def test_damper_position_is_known_in_every_mode(hass, loaded59):
+    # Owner, 2026-10-01: open vs closed (recirculation) matters whatever the mode, and the
+    # damper switch is unavailable outside manual. The sensor reads the same inverted flag.
+    _, ch = loaded59
+    position = "binary_sensor.office_breezer_damper_position"
+    assert hass.states.get("switch.office_breezer_damper").state == STATE_UNAVAILABLE  # auto
+    assert hass.states.get(position).state == "on"  # fixture: damper False on the wire = open
+    ch["cloud"].push({p.DAMPER: True})
+    await hass.async_block_till_done()
+    assert hass.states.get(position).state == "off"
